@@ -86,6 +86,12 @@ export function createSimpleFieldResolver(
   const middlewares = globalMiddlewares.concat(fieldMetadata.middlewares!);
   applyAuthChecker(middlewares, authMode, authChecker, fieldMetadata.roles);
 
+  if (middlewares.length === 0) {
+    return (root, args, context, info) => {
+      return root[fieldMetadata.name];
+    };
+  }
+
   return async (root, args, context, info) => {
     const resolverData: ResolverData<any> = { root, args, context, info };
     return await applyMiddlewares(
