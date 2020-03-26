@@ -8,55 +8,59 @@ import { ResolverData, AuthChecker, AuthMode } from "../interfaces";
 import { Middleware, MiddlewareFn, MiddlewareClass } from "../interfaces/Middleware";
 import { IOCContainer } from "../utils/container";
 import { AuthMiddleware } from "../helpers/auth-middleware";
+import isPromiseLike from "../utils/isPromiseLike";
 
-export async function getParams(
+export function getParams(
   params: ParamMetadata[],
   resolverData: ResolverData<any>,
   globalValidate: boolean | ValidatorOptions,
   pubSub: PubSubEngine,
-): Promise<any[]> {
-  return Promise.all(
-    params
-      .sort((a, b) => a.index - b.index)
-      .map(async paramInfo => {
-        switch (paramInfo.kind) {
-          case "args":
-            return await validateArg(
-              convertToType(paramInfo.getType(), resolverData.args),
-              globalValidate,
-              paramInfo.validate,
-            );
-          case "arg":
-            return await validateArg(
-              convertToType(paramInfo.getType(), resolverData.args[paramInfo.name]),
-              globalValidate,
-              paramInfo.validate,
-            );
-          case "context":
-            if (paramInfo.propertyName) {
-              return resolverData.context[paramInfo.propertyName];
-            }
-            return resolverData.context;
-          case "root":
-            const rootValue = paramInfo.propertyName
-              ? resolverData.root[paramInfo.propertyName]
-              : resolverData.root;
-            if (!paramInfo.getType) {
-              return rootValue;
-            }
-            return convertToType(paramInfo.getType(), rootValue);
-          case "info":
-            return resolverData.info;
-          case "pubSub":
-            if (paramInfo.triggerKey) {
-              return (payload: any) => pubSub.publish(paramInfo.triggerKey!, payload);
-            }
-            return pubSub;
-          case "custom":
-            return await paramInfo.resolver(resolverData);
-        }
-      }),
-  );
+): Promise<any[]> | any[] {
+  const paramValues = params
+    .sort((a, b) => a.index - b.index)
+    .map(paramInfo => {
+      switch (paramInfo.kind) {
+        case "args":
+          return validateArg(
+            convertToType(paramInfo.getType(), resolverData.args),
+            globalValidate,
+            paramInfo.validate,
+          );
+        case "arg":
+          return validateArg(
+            convertToType(paramInfo.getType(), resolverData.args[paramInfo.name]),
+            globalValidate,
+            paramInfo.validate,
+          );
+        case "context":
+          if (paramInfo.propertyName) {
+            return resolverData.context[paramInfo.propertyName];
+          }
+          return resolverData.context;
+        case "root":
+          const rootValue = paramInfo.propertyName
+            ? resolverData.root[paramInfo.propertyName]
+            : resolverData.root;
+          if (!paramInfo.getType) {
+            return rootValue;
+          }
+          return convertToType(paramInfo.getType(), rootValue);
+        case "info":
+          return resolverData.info;
+        case "pubSub":
+          if (paramInfo.triggerKey) {
+            return (payload: any) => pubSub.publish(paramInfo.triggerKey!, payload);
+          }
+          return pubSub;
+        case "custom":
+          return paramInfo.resolver(resolverData);
+      }
+    });
+  if (paramValues.some(isPromiseLike)) {
+    return Promise.all(paramValues);
+  } else {
+    return paramValues;
+  }
 }
 
 export function applyAuthChecker(
@@ -70,12 +74,15 @@ export function applyAuthChecker(
   }
 }
 
-export async function applyMiddlewares(
+export function applyMiddlewares(
   container: IOCContainer,
   resolverData: ResolverData<any>,
   middlewares: Array<Middleware<any>>,
   resolverHandlerFunction: () => any,
 ): Promise<any> {
+  if (middlewares.length === 0) {
+    return resolverHandlerFunction();
+  }
   let middlewaresIndex = -1;
   async function dispatchHandler(currentIndex: number): Promise<void> {
     if (currentIndex <= middlewaresIndex) {
