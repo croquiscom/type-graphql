@@ -1,5 +1,5 @@
 import { GraphQLSchema, printSchema } from "graphql";
-import { Options as PrintSchemaOptions } from "graphql/utilities/schemaPrinter";
+import { Options as PrintSchemaOptions } from "graphql/utilities/printSchema";
 
 import { outputFile, outputFileSync } from "../helpers/filesystem";
 

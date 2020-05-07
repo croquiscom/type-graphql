@@ -1,5 +1,5 @@
 import { GraphQLSchema } from "graphql";
-import { Options as PrintSchemaOptions } from "graphql/utilities/schemaPrinter";
+import { Options as PrintSchemaOptions } from "graphql/utilities/printSchema";
 import * as path from "path";
 
 import { SchemaGenerator, SchemaGeneratorOptions } from "../schema/schema-generator";

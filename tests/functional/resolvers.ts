@@ -16,6 +16,7 @@ import {
   visit,
   visitWithTypeInfo,
   IntrospectionInputObjectType,
+  GraphQLError,
 } from "graphql";
 import * as path from "path";
 import { plainToClass } from "class-transformer";
@@ -1087,6 +1088,7 @@ describe("Resolvers", () => {
     let querySecondCustom: any;
     let descriptorEvaluated: boolean;
     let sampleObjectConstructorCallCount: number;
+    let validationErrors: GraphQLError[];
 
     function DescriptorDecorator(): MethodDecorator {
       return (obj, methodName, descriptor: any) => {
@@ -1099,7 +1101,7 @@ describe("Resolvers", () => {
     }
 
     // helpers
-    function generateAndVisitComplexMethod(maximumComplexity: number): ValidationContext {
+    function generateAndVisitComplexMethod(maximumComplexity: number) {
       const query = /* graphql */ `
         query {
           sampleQuery {
@@ -1109,13 +1111,14 @@ describe("Resolvers", () => {
       `;
       const ast = parse(query);
       const typeInfo = new TypeInfo(schema);
-      const context = new ValidationContext(schema, ast, typeInfo);
+      const context = new ValidationContext(schema, ast, typeInfo, err =>
+        validationErrors.push(err),
+      );
       const visitor = new ComplexityVisitor(context, {
         maximumComplexity,
         estimators: [fieldConfigEstimator(), simpleEstimator({ defaultComplexity: 1 })],
       });
       visit(ast, visitWithTypeInfo(typeInfo, visitor));
-      return context;
     }
 
     beforeEach(() => {
@@ -1126,6 +1129,7 @@ describe("Resolvers", () => {
       querySecondCustom = undefined;
       descriptorEvaluated = false;
       sampleObjectConstructorCallCount = 0;
+      validationErrors = [];
     });
 
     beforeAll(async () => {
@@ -1401,22 +1405,22 @@ describe("Resolvers", () => {
     });
 
     it("should fail when a query exceeds the max allowed complexity", () => {
-      const context = generateAndVisitComplexMethod(5);
-      expect(context.getErrors().length).toEqual(1);
-      expect(context.getErrors()[0].message).toEqual(
+      generateAndVisitComplexMethod(5);
+      expect(validationErrors.length).toEqual(1);
+      expect(validationErrors[0].message).toEqual(
         "The query exceeds the maximum complexity of 5. Actual complexity is 11",
       );
     });
 
     it("should succeed when a query does not exceed the max allowed complexity", () => {
-      const context = generateAndVisitComplexMethod(12);
-      expect(context.getErrors().length).toEqual(0);
+      generateAndVisitComplexMethod(12);
+      expect(validationErrors.length).toEqual(0);
     });
 
     it("Complexity of a field should be overridden by complexity of a field resolver", () => {
-      const context = generateAndVisitComplexMethod(9);
-      expect(context.getErrors().length).toEqual(1);
-      expect(context.getErrors()[0].message).toEqual(
+      generateAndVisitComplexMethod(9);
+      expect(validationErrors.length).toEqual(1);
+      expect(validationErrors[0].message).toEqual(
         "The query exceeds the maximum complexity of 9. Actual complexity is 11",
       );
     });
@@ -1596,7 +1600,7 @@ describe("Resolvers", () => {
       const { data } = await graphql(schema, query);
 
       expect(descriptorEvaluated).toBe(true);
-      expect(data.queryWithCustomDescriptorDecorator).toBe(true);
+      expect(data!.queryWithCustomDescriptorDecorator).toBe(true);
     });
   });
 
@@ -1690,9 +1694,11 @@ describe("Resolvers", () => {
     let baseResolver: any;
     let childResolver: any;
     let overrideResolver: any;
+    let validationErrors: GraphQLError[];
 
     beforeEach(() => {
       thisVar = null;
+      validationErrors = [];
     });
 
     beforeAll(async () => {
@@ -1850,14 +1856,16 @@ describe("Resolvers", () => {
       }`;
       const ast = parse(query);
       const typeInfo = new TypeInfo(schema);
-      const context = new ValidationContext(schema, ast, typeInfo);
+      const context = new ValidationContext(schema, ast, typeInfo, err =>
+        validationErrors.push(err),
+      );
       const visitor = new ComplexityVisitor(context, {
         maximumComplexity: 2,
         estimators: [fieldConfigEstimator(), simpleEstimator({ defaultComplexity: 1 })],
       });
       visit(ast, visitWithTypeInfo(typeInfo, visitor));
-      expect(context.getErrors().length).toEqual(1);
-      expect(context.getErrors()[0].message).toEqual(
+      expect(validationErrors.length).toEqual(1);
+      expect(validationErrors[0].message).toEqual(
         "The query exceeds the maximum complexity of 2. Actual complexity is 4",
       );
     });

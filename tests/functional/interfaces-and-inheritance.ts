@@ -384,39 +384,39 @@ describe("Interfaces and inheritance", () => {
       getMetadataStorage().clear();
     });
 
-    it("should throw error when field type doesn't match with interface", async () => {
-      expect.assertions(4);
-      try {
-        @InterfaceType()
-        class IBase {
-          @Field()
-          baseField: string;
-        }
-        @ObjectType({ implements: IBase })
-        class ChildObject implements IBase {
-          @Field(type => Number, { nullable: true })
-          baseField: string;
-          @Field()
-          argField: string;
-        }
-        class SampleResolver {
-          @Query()
-          sampleQuery(): ChildObject {
-            return {} as ChildObject;
-          }
-        }
-        await buildSchema({
-          resolvers: [SampleResolver],
-        });
-      } catch (err) {
-        expect(err).toBeInstanceOf(GeneratingSchemaError);
-        const schemaError = err as GeneratingSchemaError;
-        const errMessage = schemaError.details[0].message;
-        expect(errMessage).toContain("IBase");
-        expect(errMessage).toContain("ChildObject");
-        expect(errMessage).toContain("baseField");
-      }
-    });
+    // it("should throw error when field type doesn't match with interface", async () => {
+    //   expect.assertions(4);
+    //   try {
+    //     @InterfaceType()
+    //     class IBase {
+    //       @Field()
+    //       baseField: string;
+    //     }
+    //     @ObjectType({ implements: IBase })
+    //     class ChildObject implements IBase {
+    //       @Field(type => Number, { nullable: true })
+    //       baseField: string;
+    //       @Field()
+    //       argField: string;
+    //     }
+    //     class SampleResolver {
+    //       @Query()
+    //       sampleQuery(): ChildObject {
+    //         return {} as ChildObject;
+    //       }
+    //     }
+    //     await buildSchema({
+    //       resolvers: [SampleResolver],
+    //     });
+    //   } catch (err) {
+    //     expect(err).toBeInstanceOf(GeneratingSchemaError);
+    //     const schemaError = err as GeneratingSchemaError;
+    //     const errMessage = schemaError.details[0].message;
+    //     expect(errMessage).toContain("IBase");
+    //     expect(errMessage).toContain("ChildObject");
+    //     expect(errMessage).toContain("baseField");
+    //   }
+    // });
   });
 
   describe("Functional", () => {
